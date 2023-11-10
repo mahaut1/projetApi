@@ -9,7 +9,6 @@ import (
 type Item struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
-	// Autres champs selon vos besoins
 }
 
 var items []Item
@@ -48,13 +47,9 @@ func updateItem(c *gin.Context) {
 		return
 	}
 
-	// Logic to find and update the item in the 'items' slice
 	for index, item := range items {
 		if item.ID == id {
-			// Item found, update it
 			items[index] = updatedItem
-
-			// Send back the updated item or a success message
 			c.JSON(http.StatusOK, updatedItem)
 			return
 		}
@@ -70,15 +65,11 @@ func deleteItem(c *gin.Context) {
 	// Logic to find and delete the item from the 'items' slice
 	for i, item := range items {
 		if item.ID == id {
-			// Remove the item from the slice using append to exclude the item at the specific index
 			items = append(items[:i], items[i+1:]...)
-
-			// Sending a 204 No Content status to indicate a successful deletion
 			c.Status(http.StatusNoContent)
 			return
 		}
 	}
 
-	// If the item with the specified ID is not found
 	c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
 }
