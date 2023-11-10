@@ -1,79 +1,84 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
 	"net/http"
 
-	"github.com/gorilla/mux" // implémentation du routeur
+	"github.com/gin-gonic/gin"
 )
 
 type Item struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
-	// ... d'autres champs selon vos besoins
+	// Autres champs selon vos besoins
 }
 
 var items []Item
 
 func main() {
-	router := mux.NewRouter()
+	router := gin.Default()
 
-	router.HandleFunc("/items", getItems).Methods("GET")
-	router.HandleFunc("/items", addItem).Methods("POST")
-	router.HandleFunc("/items/{id}", updateItem).Methods("PUT")
-	router.HandleFunc("/items/{id}", deleteItem).Methods("DELETE")
+	router.GET("/items", getItems)
+	router.POST("/items", addItem)
+	router.PUT("/items/:id", updateItem)
+	router.DELETE("/items/:id", deleteItem)
 
-	log.Fatal(http.ListenAndServe(":8000", router))
+	router.Run(":8080")
 }
 
-func getItems(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(items)
+func getItems(c *gin.Context) {
+	c.JSON(http.StatusOK, items)
 }
 
-func addItem(w http.ResponseWriter, r *http.Request) {
+func addItem(c *gin.Context) {
 	var newItem Item
-	_ = json.NewDecoder(r.Body).Decode(&newItem)
+	if err := c.ShouldBindJSON(&newItem); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	items = append(items, newItem)
-	json.NewEncoder(w).Encode(items)
+	c.JSON(http.StatusCreated, newItem)
 }
 
-func updateItem(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
+func updateItem(c *gin.Context) {
+	id := c.Param("id")
 	var updatedItem Item
-	_ = json.NewDecoder(r.Body).Decode(&updatedItem)
 
+	if err := c.ShouldBindJSON(&updatedItem); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Logic to find and update the item in the 'items' slice
 	for index, item := range items {
 		if item.ID == id {
-			// Update the item found in the slice
+			// Item found, update it
 			items[index] = updatedItem
-			json.NewEncoder(w).Encode(items[index])
+
+			// Send back the updated item or a success message
+			c.JSON(http.StatusOK, updatedItem)
 			return
 		}
 	}
 
-	// If the ID is not found, return an error or appropriate response
-	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte("Item not found"))
+	// If the item with the specified ID is not found
+	c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
 }
 
-func deleteItem(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+func deleteItem(c *gin.Context) {
+	id := c.Param("id")
 
-	for index, item := range items {
+	// Logic to find and delete the item from the 'items' slice
+	for i, item := range items {
 		if item.ID == id {
-			// Remove the item from the slice
-			items = append(items[:index], items[index+1:]...)
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Item deleted"))
+			// Remove the item from the slice using append to exclude the item at the specific index
+			items = append(items[:i], items[i+1:]...)
+
+			// Sending a 204 No Content status to indicate a successful deletion
+			c.Status(http.StatusNoContent)
 			return
 		}
 	}
 
-	// If the ID is not found, return an error or appropriate response
-	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte("Item not found"))
+	// If the item with the specified ID is not found
+	c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
 }
